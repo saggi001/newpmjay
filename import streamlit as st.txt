@@ -1,0 +1,68 @@
+import streamlit as st
+import pandas as pd
+from streamlit_qrcode_scanner import qrcode_scanner
+from datetime import datetime
+import os
+
+# पेज सेटिंग (Hacker/Tech Look)
+st.set_page_config(page_title="PMJAY Scanner Pro", layout="centered")
+
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; color: #00ffcc; }
+    div.stButton > button:first-child {
+        background-color: #00ffcc; color: black; border-radius: 10px; width: 100%;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+st.title("🛡️ PMJAY डेटा स्कॅनर")
+st.subheader("औरंगाबाद महानगरपालिका - आरोग्य विभाग")
+
+# डेटा स्टोअर करण्यासाठी फाईल
+DATA_FILE = "pmjay_data.csv"
+
+# जर फाईल नसेल तर नवीन तयार करा
+if not os.path.exists(DATA_FILE):
+    df = pd.DataFrame(columns=["अनुक्रमांक", "कार्ड माहिती", "स्कॅनिंग वेळ"])
+    df.to_csv(DATA_FILE, index=False)
+
+# QR स्कॅनर सुरू करणे
+st.write("---")
+st.info("खालील बटण दाबून कॅमेरा सुरू करा आणि कार्ड स्कॅन करा")
+qr_code = qrcode_scanner(key='scanner')
+
+if qr_code:
+    st.success(f"स्कॅन यशस्वी: {qr_code}")
+    
+    # नवीन डेटा तयार करणे
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    current_df = pd.read_csv(DATA_FILE)
+    new_entry = {
+        "अनुक्रमांक": len(current_df) + 1,
+        "कार्ड माहिती": qr_code,
+        "स्कॅनिंग वेळ": now
+    }
+    
+    # डेटा सेव्ह करणे
+    if st.button("डेटा एक्सेलमध्ये सेव्ह करा"):
+        current_df = pd.concat([current_df, pd.DataFrame([new_entry])], ignore_index=True)
+        current_df.to_csv(DATA_FILE, index=False)
+        st.balloons()
+        st.info("डेटा सुरक्षितपणे सेव्ह झाला आहे!")
+
+# डेटा डिस्प्ले आणि डाऊनलोड
+st.write("---")
+if os.path.exists(DATA_FILE):
+    final_df = pd.read_csv(DATA_FILE)
+    st.write("### आजचे स्कॅनिंग रिपोर्ट")
+    st.dataframe(final_df)
+    
+    # Excel डाऊनलोड बटण
+    csv = final_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 पूर्ण एक्सेल फाईल डाऊनलोड करा",
+        data=csv,
+        file_name=f"PMJAY_Report_{datetime.now().date()}.csv",
+        mime='text/csv',
+    )
